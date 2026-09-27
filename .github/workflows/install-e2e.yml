@@ -130,6 +130,10 @@ concurrency:
 jobs:
   pick-releases:
     name: Pick release tags
+    # The schedule runs only on the upstream repository: a fork carries no
+    # release tags, so every scheduled leg would fail. Dispatch still works
+    # anywhere. The whole run hangs off this job (report included).
+    if: github.event_name != 'schedule' || github.repository == 'NousResearch/hermes-agent'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -230,6 +234,7 @@ jobs:
 
   bundle-inputs:
     name: Validate pinned bundle transitions
+    if: github.event_name != 'schedule' || github.repository == 'NousResearch/hermes-agent'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -343,6 +348,7 @@ jobs:
   # looks it up by that name.
   leg-player:
     name: Upload leg player
+    if: github.event_name != 'schedule' || github.repository == 'NousResearch/hermes-agent'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -407,10 +413,11 @@ jobs:
   # NOT reachable through `needs` (a matrix job's result collapses to one
   # aggregate), so the table body comes from the run's own job list; the
   # `needs` results only sequence this job after every leg and provide
-  # the per-OS aggregates.
+  # the per-OS aggregates. The chart is keyed by the picked tags, so it
+  # needs pick-releases to have produced them.
   report:
     name: Result chart
-    if: always()
+    if: always() && needs.pick-releases.result == 'success'
     needs: [leg-player, pick-releases, linux, windows, macos, bundle-inputs, windows-bundled, macos-bundled]
     runs-on: ubuntu-latest
     timeout-minutes: 5
